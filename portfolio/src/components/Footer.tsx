@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { SiLinkedin, SiGithub, SiWhatsapp } from "react-icons/si";
+// Switched from 'si' to 'fa' (Font Awesome) for stable exports
+import { FaLinkedin, FaGithub, FaWhatsapp } from "react-icons/fa"; 
 import Button from "@/components/ui/button"; 
 
 export default function Footer() {
@@ -19,7 +20,7 @@ export default function Footer() {
           className="hover:text-[#0077B5] transition-transform transform hover:scale-110"
           aria-label="LinkedIn"
         >
-          <SiLinkedin size={20} />
+          <FaLinkedin size={20} />
         </a>
         <a
           href="https://github.com/Obrienmaina-Mosbach"
@@ -28,7 +29,7 @@ export default function Footer() {
           className="hover:text-[#C06EFF] transition-transform transform hover:scale-110"
           aria-label="GitHub"
         >
-          <SiGithub size={20} />
+          <FaGithub size={20} />
         </a>
         <a
           href="https://wa.me/+254728036420"
@@ -37,7 +38,7 @@ export default function Footer() {
           className="hover:text-[#25D366] transition-transform transform hover:scale-110"
           aria-label="WhatsApp"
         >
-          <SiWhatsapp size={20} />
+          <FaWhatsapp size={20} />
         </a>
       </div>
       <Button
