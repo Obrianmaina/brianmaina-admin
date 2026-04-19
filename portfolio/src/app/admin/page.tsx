@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { 
   FileText, Megaphone, Receipt, Inbox, Users, Briefcase, 
   Building2, LogOut, GraduationCap, MessageSquare, Settings, 
-  BarChart3, BadgeDollarSign
+  BarChart3, BadgeDollarSign, AppWindow 
 } from "lucide-react";
 import AdminModal from "@/components/AdminModal";
 
@@ -17,7 +17,6 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
   
-  // New state for the profile
   const [profile, setProfile] = useState<{name?: string, email?: string, bio?: string, avatarUrl?: string} | null>(null);
 
   const [modal, setModal] = useState<{
@@ -34,7 +33,7 @@ export default function AdminDashboard() {
         const res = await fetch("/api/admin/check-auth");
         if (res.ok) {
           setIsAuthenticated(true);
-          fetchProfile(); // Fetch profile if authenticated
+          fetchProfile();
         }
       } catch (error) {
         console.error("Auth check failed", error);
@@ -75,7 +74,7 @@ export default function AdminDashboard() {
       const data = await res.json();
       if (res.ok && data.success) {
         setIsAuthenticated(true);
-        fetchProfile(); // Fetch profile immediately after login
+        fetchProfile();
       } else {
         showModal('error', 'Access Denied', data.message || "Incorrect credentials");
       }
@@ -92,7 +91,7 @@ export default function AdminDashboard() {
       setIsAuthenticated(false);
       setPassword("");
       setToken("");
-      setProfile(null); // Clear profile on logout
+      setProfile(null);
     } catch (error) {
       console.error("Logout failed", error);
     }
@@ -161,24 +160,42 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Profile Display Section */}
         {profile && (profile.name || profile.email || profile.bio) && (
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm dark:shadow-none border border-gray-100 dark:border-gray-800 mb-8 flex flex-col md:flex-row items-center gap-6 text-center md:text-left transition-colors duration-300">
-            <div className="w-20 h-20 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0 overflow-hidden transition-colors">
-              {profile.avatarUrl ? (
-                <img src={profile.avatarUrl} alt="Admin Avatar" className="w-full h-full object-cover" />
-              ) : (
-                profile.name ? profile.name.charAt(0).toUpperCase() : (profile.email ? profile.email.charAt(0).toUpperCase() : 'A')
-              )}
+          <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl shadow-sm dark:shadow-none border border-gray-100 dark:border-gray-800 mb-8 flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left transition-colors duration-300">
+            <div className="flex flex-col md:flex-row items-center gap-6">
+              <div className="w-20 h-20 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-full flex items-center justify-center text-2xl font-bold flex-shrink-0 overflow-hidden transition-colors">
+                {profile.avatarUrl ? (
+                  <img src={profile.avatarUrl} alt="Admin Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  profile.name ? profile.name.charAt(0).toUpperCase() : (profile.email ? profile.email.charAt(0).toUpperCase() : 'A')
+                )}
+              </div>
+              <div className="flex-1">
+                <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 transition-colors">{profile.name || profile.email || "Admin Profile"}</h2>
+                <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-2xl leading-relaxed transition-colors">{profile.bio}</p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 transition-colors">{profile.name || profile.email || "Admin Profile"}</h2>
-              <p className="text-gray-600 dark:text-gray-400 mt-2 max-w-3xl leading-relaxed transition-colors">{profile.bio}</p>
-            </div>
+            
+            {/* Settings Button Added Here */}
+            <button
+              onClick={() => router.push('/admin/settings')}
+              className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded-lg font-medium transition-colors shrink-0"
+              aria-label="Portal Settings"
+            >
+              <Settings size={18} />
+              <span>Settings</span>
+            </button>
           </div>
         )}
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto mt-4">
+          
+          <div onClick={() => router.push('/admin/apps')} className="bg-white dark:bg-gray-900 p-8 rounded-3xl shadow-sm hover:shadow-xl dark:hover:shadow-2xl dark:hover:shadow-fuchsia-900/5 hover:-translate-y-1 transition-all cursor-pointer border border-gray-100 dark:border-gray-800 flex flex-col items-center text-center group">
+            <div className="w-16 h-16 bg-fuchsia-100 dark:bg-fuchsia-900/30 text-fuchsia-600 dark:text-fuchsia-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform"><AppWindow size={32} /></div>
+            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2 transition-colors">Manage Apps</h2>
+            <p className="text-gray-500 dark:text-gray-400 transition-colors">Add, edit, and manage your applications showcase.</p>
+          </div>
+
           <div onClick={() => router.push('/admin/blogs')} className="bg-white dark:bg-gray-900 p-8 rounded-3xl shadow-sm hover:shadow-xl dark:hover:shadow-2xl dark:hover:shadow-teal-900/5 hover:-translate-y-1 transition-all cursor-pointer border border-gray-100 dark:border-gray-800 flex flex-col items-center text-center group">
             <div className="w-16 h-16 bg-teal-100 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform"><FileText size={32} /></div>
             <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2 transition-colors">Manage Blogs</h2>
@@ -245,12 +262,6 @@ export default function AdminDashboard() {
             <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform"><BarChart3 size={32} /></div>
             <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2 transition-colors">Analytics</h2>
             <p className="text-gray-500 dark:text-gray-400 transition-colors">Track page views and resume downloads.</p>
-          </div>
-
-          <div onClick={() => router.push('/admin/settings')} className="bg-white dark:bg-gray-900 p-8 rounded-3xl shadow-sm hover:shadow-xl dark:hover:shadow-2xl dark:hover:shadow-slate-900/5 hover:-translate-y-1 transition-all cursor-pointer border border-gray-100 dark:border-gray-800 flex flex-col items-center text-center group">
-            <div className="w-16 h-16 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform"><Settings size={32} /></div>
-            <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2 transition-colors">Portal Settings</h2>
-            <p className="text-gray-500 dark:text-gray-400 transition-colors">Manage security and admin profile data.</p>
           </div>
 
         </div>
