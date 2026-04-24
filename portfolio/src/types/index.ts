@@ -68,13 +68,14 @@ export interface CompanyProject {
 export interface BlogPost {
   _id?: string;
   title: string;
-  slug: string;
-  description: string; // Custom summary for the blog tiles
+  description?: string;
   content: string;
-  featuredImage: string;
+  featuredImage?: string;
   photoCredit?: string;
   isPublished: boolean;
-  createdAt: Date;
+  bibliography?: string; // Add this line
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface BlogComment {

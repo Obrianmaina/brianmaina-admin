@@ -14,6 +14,7 @@ interface BlogUpdate {
   content: string;
   featuredImage: string;
   photoCredit: string;
+  bibliography?: string; // We added the field here
   isPublished: boolean;
   updatedAt: Date;
 }
@@ -27,7 +28,6 @@ async function isAdmin() {
     return false;
   }
   
-  // FIXED: Checking against ADMIN_SESSION_TOKEN instead of ADMIN_PASSWORD
   if (!process.env.ADMIN_SESSION_TOKEN) {
     console.error("Auth Error: ADMIN_SESSION_TOKEN env variable is missing");
     return false;
@@ -85,7 +85,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { title, description, content, featuredImage, photoCredit, isPublished } = await req.json();
+    // We added bibliography to the extracted payload here
+    const { title, description, content, featuredImage, photoCredit, isPublished, bibliography } = await req.json();
     
     if (!title || !content) {
       return NextResponse.json({ error: "Missing required fields (title or content)" }, { status: 400 });
@@ -102,6 +103,7 @@ export async function POST(req: NextRequest) {
       content,
       featuredImage,
       photoCredit,
+      bibliography, // We added the field to the database object here
       isPublished: !!isPublished,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -123,7 +125,8 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { id, title, description, content, featuredImage, photoCredit, isPublished } = body;
+    // We added bibliography to the extracted payload here
+    const { id, title, description, content, featuredImage, photoCredit, isPublished, bibliography } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Blog ID is required for updating" }, { status: 400 });
@@ -142,6 +145,7 @@ export async function PUT(req: NextRequest) {
       content,
       featuredImage,
       photoCredit,
+      bibliography, // We added the field to the update object here
       isPublished: !!isPublished,
       updatedAt: new Date()
     };

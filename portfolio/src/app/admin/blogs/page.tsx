@@ -8,9 +8,65 @@ import { BlogPost } from "@/types";
 import { Pencil, Trash2, Plus, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import AdminModal from "@/components/AdminModal";
 
+// Markdown Preview Imports
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
+
+// Auto-converts raw BibTeX into standard Markdown Footnotes
+const processCitations = (markdown: string, bibtex: string) => {
+  if (!bibtex.trim() || !markdown.includes('[@')) return markdown;
+
+  let parsedMarkdown = markdown;
+  const footnotes: string[] = [];
+  const entries = bibtex.split('@').slice(1);
+
+  entries.forEach(entry => {
+    // Find the citation key (e.g., the ID right after the opening bracket)
+    const idMatch = entry.match(/\{([^,]+),/);
+    if (idMatch) {
+      const id = idMatch[1].trim();
+
+      // Safely extract fields whether they use brackets {} or quotes ""
+      const extract = (field: string) => {
+        const regex = new RegExp(`${field}\\s*=\\s*[\\{"]([\\s\\S]*?)[\\}"](?:,|\\n|\\r|$)`, 'i');
+        const match = entry.match(regex);
+        return match ? match[1].replace(/[\n\r]/g, ' ').replace(/[{}]/g, '').trim() : '';
+      };
+
+      const author = extract('author') || extract('editor') || 'Unknown Author';
+      const title = extract('title') || 'Untitled';
+      const year = extract('year') || 'n.d.';
+      const publisher = extract('publisher') || extract('journal') || extract('booktitle') || '';
+      const url = extract('url') || extract('doi') || '';
+
+      // Build a clean APA-style reference string
+      let citation = `${author} (${year}). *${title}*. ${publisher}.`;
+      if (url) citation += ` [Source](${url})`;
+
+      // Replace in-text [@citationKey] with standard GFM footnote [^citationKey]
+      const citeRegex = new RegExp(`\\[@${id}\\]`, 'g');
+      if (citeRegex.test(parsedMarkdown)) {
+        parsedMarkdown = parsedMarkdown.replace(citeRegex, `[^${id}]`);
+        footnotes.push(`[^${id}]: ${citation}`);
+      }
+    }
+  });
+
+  // Append the compiled footnotes to the bottom of the article
+  if (footnotes.length > 0) {
+    parsedMarkdown += '\n\n***\n\n### References\n\n' + footnotes.join('\n\n');
+  }
+
+  return parsedMarkdown;
+};
+
 export default function BlogsPage() {
   const router = useRouter();
-  const [view, setView] = useState<'list' | 'editor'>('list');
+
+  const [view, setView] = useState<'list' | 'editor' | 'preview'>('list');
   const [blogs, setBlogs] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -20,6 +76,7 @@ export default function BlogsPage() {
   const [content, setContent] = useState("");
   const [featuredImage, setFeaturedImage] = useState("");
   const [photoCredit, setPhotoCredit] = useState("");
+  const [bibliography, setBibliography] = useState("");
 
   const [modal, setModal] = useState<{
     show: boolean;
@@ -62,6 +119,7 @@ export default function BlogsPage() {
     setContent("");
     setFeaturedImage("");
     setPhotoCredit("");
+    setBibliography("");
   };
 
   const openEditorForNew = () => {
@@ -77,6 +135,7 @@ export default function BlogsPage() {
     setContent(blog.content);
     setFeaturedImage(blog.featuredImage || "");
     setPhotoCredit(blog.photoCredit || "");
+    setBibliography(blog.bibliography || "");
     setView('editor');
   };
 
@@ -89,8 +148,8 @@ export default function BlogsPage() {
     try {
       const method = editingId ? "PUT" : "POST";
       const payload = editingId
-        ? { id: editingId, title, description, content, featuredImage, photoCredit, isPublished }
-        : { title, description, content, featuredImage, photoCredit, isPublished };
+        ? { id: editingId, title, description, content, featuredImage, photoCredit, isPublished, bibliography }
+        : { title, description, content, featuredImage, photoCredit, isPublished, bibliography };
 
       const res = await fetch("/api/blogs", {
         method,
@@ -131,10 +190,11 @@ export default function BlogsPage() {
           content: blog.content,
           featuredImage: blog.featuredImage,
           photoCredit: blog.photoCredit,
+          bibliography: blog.bibliography,
           isPublished: !blog.isPublished,
         }),
       });
-      
+
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
@@ -165,7 +225,7 @@ export default function BlogsPage() {
         credentials: "same-origin",
         body: JSON.stringify({ id }),
       });
-      
+
       const data = await res.json().catch(() => ({}));
 
       if (res.ok) {
@@ -179,7 +239,6 @@ export default function BlogsPage() {
     }
   };
 
-  // Reusable UI classes for the editor
   const inputClasses = "w-full p-4 border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-xl outline-none focus:ring-2 focus:ring-teal-500 focus:bg-white dark:focus:bg-gray-900 transition-all duration-200";
   const labelClasses = "block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1.5 ml-1";
   const sectionClasses = "bg-white dark:bg-gray-800/60 p-6 sm:p-8 rounded-3xl border border-gray-100 dark:border-gray-700/50 shadow-sm space-y-6 transition-colors";
@@ -266,22 +325,21 @@ export default function BlogsPage() {
             </div>
 
             <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
-              
-              {/* SECTION 1: Basic Information */}
+
               <div className={sectionClasses}>
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-700 pb-3 mb-2">
                   Post Details
                 </h3>
-                
+
                 <div>
                   <label className={labelClasses}>Title</label>
-                  <input 
-                    type="text" 
-                    required 
-                    value={title} 
-                    onChange={(e) => setTitle(e.target.value)} 
-                    className={inputClasses} 
-                    placeholder="Enter an engaging title..." 
+                  <input
+                    type="text"
+                    required
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className={inputClasses}
+                    placeholder="Enter an engaging title..."
                   />
                 </div>
 
@@ -292,48 +350,46 @@ export default function BlogsPage() {
                       {getWordCount(description)} / 20 words
                     </span>
                   </div>
-                  <textarea 
-                    required 
-                    rows={3} 
-                    value={description} 
-                    onChange={handleDescriptionChange} 
-                    className={`${inputClasses} resize-none`} 
-                    placeholder="A brief, compelling summary of the article..." 
+                  <textarea
+                    required
+                    rows={3}
+                    value={description}
+                    onChange={handleDescriptionChange}
+                    className={`${inputClasses} resize-none`}
+                    placeholder="A brief, compelling summary of the article..."
                   />
                 </div>
               </div>
 
-              {/* SECTION 2: Media */}
               <div className={sectionClasses}>
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-700 pb-3 mb-2">
                   Featured Media
                 </h3>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className={labelClasses}>Image URL</label>
-                    <input 
-                      type="url" 
-                      value={featuredImage} 
-                      onChange={(e) => setFeaturedImage(e.target.value)} 
-                      className={inputClasses} 
-                      placeholder="https://example.com/image.jpg" 
+                    <input
+                      type="url"
+                      value={featuredImage}
+                      onChange={(e) => setFeaturedImage(e.target.value)}
+                      className={inputClasses}
+                      placeholder="https://example.com/image.jpg"
                     />
                   </div>
                   <div>
                     <label className={labelClasses}>Photo Credit <span className="text-gray-400 font-normal">(Optional)</span></label>
-                    <input 
-                      type="text" 
-                      value={photoCredit} 
-                      onChange={(e) => setPhotoCredit(e.target.value)} 
-                      className={inputClasses} 
-                      placeholder="e.g. Jane Doe via Unsplash" 
+                    <input
+                      type="text"
+                      value={photoCredit}
+                      onChange={(e) => setPhotoCredit(e.target.value)}
+                      className={inputClasses}
+                      placeholder="e.g. Jane Doe via Unsplash"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* SECTION 3: Content */}
               <div className={sectionClasses}>
                 <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-700 pb-3 mb-2 flex justify-between items-center">
                   <span>Content Editor</span>
@@ -341,39 +397,143 @@ export default function BlogsPage() {
                     Markdown Supported
                   </span>
                 </h3>
-                
+
                 <div>
-                  <textarea 
-                    required 
-                    rows={18} 
-                    value={content} 
-                    onChange={(e) => setContent(e.target.value)} 
-                    className={`${inputClasses} font-mono text-sm leading-relaxed resize-y`} 
-                    placeholder="Start writing your amazing article here..." 
+                  <textarea
+                    required
+                    rows={18}
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
+                    className={`${inputClasses} font-mono text-sm leading-relaxed resize-y`}
+                    placeholder="Start writing your amazing article here..."
                   />
                 </div>
               </div>
 
-              {/* ACTIONS FOOTER */}
+              {/* References Section */}
+              <div className={sectionClasses}>
+                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-700 pb-3 mb-2 flex justify-between items-center">
+                  <span>References & Bibliography</span>
+                  <span className="text-xs font-normal text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-900/30 px-2 py-1 rounded-md">
+                    BibTeX Format
+                  </span>
+                </h3>
+
+                <div>
+                  <label className="block text-xs text-gray-500 mb-2">
+                    Paste your BibTeX citations here. Leave blank if this post does not require academic referencing.
+                  </label>
+                  <textarea
+                    rows={6}
+                    value={bibliography}
+                    onChange={(e) => setBibliography(e.target.value)}
+                    className={`${inputClasses} font-mono text-sm leading-relaxed resize-y`}
+                    placeholder={`@article{smith2024,\n  title={The future of web development},\n  author={Smith, John},\n  year={2024}\n}`}
+                  />
+                </div>
+              </div>
+
               <div className="flex flex-col sm:flex-row gap-4 pt-4">
-                <button 
-                  type="button" 
-                  onClick={(e) => { e.preventDefault(); handleSubmit(false); }} 
-                  disabled={loading} 
+                <button
+                  type="button"
+                  onClick={() => setView('preview')}
+                  className="flex-1 py-4 border-2 border-teal-500 text-teal-600 dark:text-teal-400 text-lg font-bold rounded-xl hover:bg-teal-50 dark:hover:bg-teal-900/20 transition-colors"
+                >
+                  Preview Article
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); handleSubmit(false); }}
+                  disabled={loading}
                   className="flex-1 py-4 border-2 border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-lg font-bold rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50"
                 >
                   {loading ? "Saving..." : "Save as Draft"}
                 </button>
-                <button 
-                  type="button" 
-                  onClick={(e) => { e.preventDefault(); handleSubmit(true); }} 
-                  disabled={loading} 
+                <button
+                  type="button"
+                  onClick={(e) => { e.preventDefault(); handleSubmit(true); }}
+                  disabled={loading}
                   className="flex-1 py-4 bg-teal-600 text-white text-lg font-bold rounded-xl hover:bg-teal-700 transition-all transform hover:-translate-y-0.5 active:translate-y-0 shadow-lg shadow-teal-500/25 dark:shadow-none disabled:opacity-50 disabled:transform-none"
                 >
                   {loading ? "Publishing..." : "Publish Article"}
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* PREVIEW VIEW */}
+        {view === 'preview' && (
+          <div className="max-w-4xl mx-auto fade-in transition-all duration-300">
+            <button onClick={() => setView('editor')} className="flex items-center text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mb-6 transition-colors font-medium">
+              <ArrowLeft size={20} className="mr-2" /> Back to Editor
+            </button>
+
+            <div className="bg-white dark:bg-gray-900 rounded-3xl p-8 sm:p-12 shadow-sm border border-gray-200 dark:border-gray-800">
+              <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 dark:text-gray-50 mb-6 leading-tight">
+                {title || "Untitled Article"}
+              </h1>
+
+              {description && (
+                <p className="text-xl text-gray-500 dark:text-gray-400 mb-8 font-medium">
+                  {description}
+                </p>
+              )}
+
+              {featuredImage && (
+                <div className="relative w-full h-[400px] mb-10 rounded-2xl overflow-hidden shadow-md">
+                  <Image
+                    src={featuredImage}
+                    alt="Article Cover"
+                    fill
+                    className="object-cover"
+                    unoptimized
+                    priority // Add this single property!
+                  />
+                </div>
+              )}
+
+              {/* Secure, Synchronous Rendering */}
+              <div className="w-full">
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm, remarkMath]}
+                  rehypePlugins={[rehypeKatex]}
+                  components={{
+                    h1: ({ ...props }) => <h1 className="text-4xl font-extrabold mt-12 mb-6 text-gray-900 dark:text-gray-50 leading-tight transition-colors" {...props} />,
+                    h2: ({ ...props }) => <h2 className="text-3xl font-bold mt-10 mb-4 text-gray-900 dark:text-gray-50 leading-tight transition-colors" {...props} />,
+                    h3: ({ ...props }) => <h3 className="text-2xl font-bold mt-8 mb-4 text-gray-900 dark:text-gray-50 leading-snug transition-colors" {...props} />,
+                    p: ({ ...props }) => <p className="mb-6 text-lg text-gray-700 dark:text-gray-300 transition-colors" {...props} />,
+                    ul: ({ ...props }) => <ul className="list-disc ml-6 mb-6 space-y-2 text-lg text-gray-700 dark:text-gray-300 marker:text-teal-500 dark:marker:text-teal-400 transition-colors" {...props} />,
+                    ol: ({ ...props }) => <ol className="list-decimal ml-6 mb-6 space-y-2 text-lg text-gray-700 dark:text-gray-300 marker:text-teal-500 dark:marker:text-teal-400 transition-colors" {...props} />,
+                    li: ({ ...props }) => <li className="pl-2" {...props} />,
+                    a: ({ ...props }) => <a className="text-teal-600 dark:text-teal-400 underline decoration-teal-300 dark:decoration-teal-900/50 underline-offset-4 hover:text-teal-700 dark:hover:text-teal-300 hover:decoration-teal-500 dark:hover:decoration-teal-400 transition-colors font-medium" {...props} />,
+                    strong: ({ ...props }) => <strong className="font-bold text-gray-900 dark:text-gray-100 transition-colors" {...props} />,
+                    blockquote: ({ ...props }) => <blockquote className="border-l-4 border-teal-500 pl-6 py-2 my-8 italic text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded-r-xl transition-colors" {...props} />,
+                    code: ({ className, children, ...props }: React.HTMLAttributes<HTMLElement>) => {
+                      const match = /language-(\w+)/.exec(className || "");
+                      const isInline = !match;
+                      return isInline ? (
+                        <code className="bg-gray-100 dark:bg-gray-800 text-teal-700 dark:text-teal-300 px-1.5 py-0.5 rounded-md font-mono text-sm border border-gray-200 dark:border-gray-700 transition-colors" {...props}>
+                          {children}
+                        </code>
+                      ) : (
+                        <div className="bg-gray-900 dark:bg-gray-950 border border-transparent dark:border-gray-800 rounded-xl overflow-hidden mb-6 shadow-md transition-colors">
+                          <pre className="p-4 overflow-x-auto text-sm text-gray-100 dark:text-gray-300 font-mono leading-relaxed">
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
+                          </pre>
+                        </div>
+                      );
+                    },
+                    img: ({ ...props }) => <img className="rounded-2xl shadow-md my-10 w-full object-cover border border-gray-100 dark:border-gray-800 transition-colors" {...props} />,
+                    hr: ({ ...props }) => <hr className="my-12 border-gray-200 dark:border-gray-800 transition-colors" {...props} />,
+                  }}
+                >
+                  {processCitations(content || "*No content written yet.*", bibliography)}
+                </ReactMarkdown>
+              </div>
+            </div>
           </div>
         )}
 
