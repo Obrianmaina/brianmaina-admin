@@ -156,7 +156,7 @@ export interface SentEmail {
   body: string;
   sentAt: string;
   resendId?: string | null;
-  status: "draft" | "scheduled" | "sent"; // Track the state
+  status: "draft" | "scheduled" | "sent" | "received";
 }
 
 export interface Quote {

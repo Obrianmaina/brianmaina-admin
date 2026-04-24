@@ -1,18 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Clock, Send, Edit3, Mail, FileText } from "lucide-react";
+import { Clock, Send, Edit3, Mail, FileText, MessageSquare, Reply } from "lucide-react";
 import { Quote, SentEmail } from "@/types";
 
 interface MessagesViewProps {
   quotes: Quote[];
-  onOpenDraft: (quote: Quote, email: SentEmail) => void;
+  onOpenDraft: (quote: Quote, email?: SentEmail) => void;
 }
 
 type GlobalEmail = SentEmail & { quote: Quote };
 
-// Use exact status names as Tab IDs to prevent mismatches
-type TabId = "all" | "draft" | "scheduled" | "sent";
+// Use exact status names as Tab IDs to prevent mismatches. Added "received"
+type TabId = "all" | "received" | "draft" | "scheduled" | "sent";
 
 export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>("all");
@@ -51,9 +51,10 @@ export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps)
     <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
       
       {/* Tabs */}
-      <div className="flex border-b border-gray-100 dark:border-gray-800 px-6 pt-4 gap-6 bg-gray-50/50 dark:bg-gray-900/50">
+      <div className="flex border-b border-gray-100 dark:border-gray-800 px-6 pt-4 gap-6 bg-gray-50/50 dark:bg-gray-900/50 overflow-x-auto custom-scrollbar">
         {[
           { id: "all", label: "All Messages", icon: <Mail size={16} /> },
+          { id: "received", label: "Inbox", icon: <MessageSquare size={16} /> },
           { id: "scheduled", label: "Outgoing (Scheduled)", icon: <Clock size={16} /> },
           { id: "draft", label: "Drafts", icon: <FileText size={16} /> },
           { id: "sent", label: "Sent", icon: <Send size={16} /> },
@@ -61,7 +62,7 @@ export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps)
           <button 
             key={tab.id}
             onClick={() => setActiveTab(tab.id as TabId)}
-            className={`pb-3 font-semibold text-sm border-b-2 transition-colors flex items-center gap-2 
+            className={`pb-3 font-semibold text-sm border-b-2 transition-colors flex items-center gap-2 whitespace-nowrap
               ${activeTab === tab.id ? "border-blue-600 text-blue-600 dark:text-blue-400" : "border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-300"}`}
           >
             {tab.icon} {tab.label}
@@ -83,6 +84,7 @@ export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps)
           filteredEmails.map((email) => {
             const isScheduled = email.status === "scheduled";
             const isDraft = email.status === "draft";
+            const isReceived = email.status === "received";
             const sendTimeMs = new Date(email.sentAt).getTime() + 60000;
             const secondsLeft = Math.max(0, Math.ceil((sendTimeMs - now) / 1000));
 
@@ -91,7 +93,11 @@ export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps)
                 
                 {/* Status Icon */}
                 <div className="flex-shrink-0 mt-1">
-                  {isScheduled ? (
+                  {isReceived ? (
+                    <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm border border-indigo-200 dark:border-indigo-800/50">
+                      <MessageSquare size={20} />
+                    </div>
+                  ) : isScheduled ? (
                     <div className="w-10 h-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
                       <Clock size={20} />
                     </div>
@@ -116,16 +122,29 @@ export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps)
                   </div>
                   
                   <div className="text-sm text-gray-500 dark:text-gray-400 mb-3 flex items-center gap-2">
-                    <span>To: <strong className="text-gray-700 dark:text-gray-300">{email.quote.name}</strong> ({email.quote.email})</span>
+                    {isReceived ? (
+                      <span>From: <strong className="text-indigo-700 dark:text-indigo-400">{email.quote.name}</strong> ({email.quote.email})</span>
+                    ) : (
+                      <span>To: <strong className="text-gray-700 dark:text-gray-300">{email.quote.name}</strong> ({email.quote.email})</span>
+                    )}
                   </div>
 
-                  <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 bg-white dark:bg-gray-950 p-3 rounded-lg border border-gray-200 dark:border-gray-800">
+                  {/* Message Bubble Styling */}
+                  <p className={`text-sm line-clamp-3 p-4 rounded-xl border ${isReceived ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800/50 text-gray-800 dark:text-gray-200' : 'bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300'}`}>
                     {email.body}
                   </p>
                 </div>
 
                 {/* Actions */}
                 <div className="flex flex-col items-end gap-2 w-36 flex-shrink-0">
+                  {isReceived && (
+                    <button 
+                      onClick={() => onOpenDraft(email.quote)}
+                      className="w-full flex justify-center items-center gap-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-lg transition-colors shadow-sm"
+                    >
+                      <Reply size={14} /> Reply
+                    </button>
+                  )}
                   {isScheduled && (
                     <>
                       <span className="animate-pulse bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded w-full text-center">
@@ -147,7 +166,7 @@ export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps)
                       <Edit3 size={14} /> Resume Draft
                     </button>
                   )}
-                  {(!isScheduled && !isDraft) && (
+                  {(!isScheduled && !isDraft && !isReceived) && (
                     <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded w-full text-center">
                       Delivered
                     </span>
