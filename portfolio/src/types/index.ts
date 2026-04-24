@@ -68,12 +68,13 @@ export interface CompanyProject {
 export interface BlogPost {
   _id?: string;
   title: string;
+  slug?: string; // Add this line!
   description?: string;
   content: string;
   featuredImage?: string;
   photoCredit?: string;
   isPublished: boolean;
-  bibliography?: string; // Add this line
+  bibliography?: string;
   createdAt?: string;
   updatedAt?: string;
 }
