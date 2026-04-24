@@ -15,49 +15,73 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 
-// Auto-converts raw BibTeX into standard Markdown Footnotes
-const processCitations = (markdown: string, bibtex: string) => {
-  if (!bibtex.trim() || !markdown.includes('[@')) return markdown;
+// Auto-converts raw BibTeX into standard inline citations (Author Year)
+const processCitations = (markdown: string, bibtex?: string) => {
+  if (!bibtex || !bibtex.trim() || !markdown.includes('[@')) return markdown;
 
   let parsedMarkdown = markdown;
-  const footnotes: string[] = [];
+  const references: string[] = [];
   const entries = bibtex.split('@').slice(1);
 
   entries.forEach(entry => {
-    // Find the citation key (e.g., the ID right after the opening bracket)
-    const idMatch = entry.match(/\{([^,]+),/);
-    if (idMatch) {
-      const id = idMatch[1].trim();
+    const firstBrace = entry.indexOf('{');
+    const firstComma = entry.indexOf(',');
 
-      // Safely extract fields whether they use brackets {} or quotes ""
-      const extract = (field: string) => {
-        const regex = new RegExp(`${field}\\s*=\\s*[\\{"]([\\s\\S]*?)[\\}"](?:,|\\n|\\r|$)`, 'i');
-        const match = entry.match(regex);
-        return match ? match[1].replace(/[\n\r]/g, ' ').replace(/[{}]/g, '').trim() : '';
-      };
+    if (firstBrace !== -1 && firstComma !== -1) {
+      const id = entry.substring(firstBrace + 1, firstComma).trim();
+      const citationTag = `[@${id}]`;
 
-      const author = extract('author') || extract('editor') || 'Unknown Author';
-      const title = extract('title') || 'Untitled';
-      const year = extract('year') || 'n.d.';
-      const publisher = extract('publisher') || extract('journal') || extract('booktitle') || '';
-      const url = extract('url') || extract('doi') || '';
+      if (parsedMarkdown.includes(citationTag)) {
+        const extract = (field: string) => {
+          const regex = new RegExp(`${field}\\s*=\\s*([\\s\\S]*?)(?:,|\\n|\\r|$)`, 'i');
+          const match = entry.match(regex);
+          return match ? match[1].replace(/[{}]/g, '').replace(/"/g, '').trim() : '';
+        };
 
-      // Build a clean APA-style reference string
-      let citation = `${author} (${year}). *${title}*. ${publisher}.`;
-      if (url) citation += ` [Source](${url})`;
+        const author = extract('author') || extract('editor') || 'Unknown Author';
+        const title = extract('title') || 'Untitled';
+        const year = extract('year') || 'n.d.';
+        const publisher = extract('publisher') || extract('journal') || extract('booktitle') || '';
+        const url = extract('url') || extract('doi') || '';
 
-      // Replace in-text [@citationKey] with standard GFM footnote [^citationKey]
-      const citeRegex = new RegExp(`\\[@${id}\\]`, 'g');
-      if (citeRegex.test(parsedMarkdown)) {
-        parsedMarkdown = parsedMarkdown.replace(citeRegex, `[^${id}]`);
-        footnotes.push(`[^${id}]: ${citation}`);
+        // Extract the Last Name for the inline tag
+        let lastName = "Unknown";
+        if (author) {
+          const authorsList = author.split(/ and /i);
+          const firstAuthor = authorsList[0].trim();
+          
+          if (firstAuthor.includes(',')) {
+            // Format: "Pallen, Mark"
+            lastName = firstAuthor.split(',')[0].trim();
+          } else {
+            // Format: "Mark Pallen"
+            const parts = firstAuthor.split(' ');
+            lastName = parts[parts.length - 1];
+          }
+          
+          if (authorsList.length > 1) {
+            lastName += ' et al.';
+          }
+        }
+
+        // Build a clean APA-style reference string
+        let fullCitation = `${author} (${year}). *${title}*${publisher ? `. ${publisher}` : ''}.`;
+        if (url) fullCitation += ` [Source](${url})`;
+
+        // Replace [@id] with an inline clickable Markdown link
+        const inlineLink = `[(${lastName} ${year})](#references)`;
+        parsedMarkdown = parsedMarkdown.split(citationTag).join(inlineLink);
+
+        // Push to the bibliography list
+        references.push(`**${lastName} ${year}:** ${fullCitation}`);
       }
     }
   });
 
-  // Append the compiled footnotes to the bottom of the article
-  if (footnotes.length > 0) {
-    parsedMarkdown += '\n\n***\n\n### References\n\n' + footnotes.join('\n\n');
+  if (references.length > 0) {
+    references.sort(); // Sort alphabetically by author
+    // Append the compiled references to the bottom
+    parsedMarkdown += '\n\n---\n\n### References\n\n' + references.map(ref => `- ${ref}`).join('\n');
   }
 
   return parsedMarkdown;
@@ -77,6 +101,11 @@ export default function BlogsPage() {
   const [featuredImage, setFeaturedImage] = useState("");
   const [photoCredit, setPhotoCredit] = useState("");
   const [bibliography, setBibliography] = useState("");
+  
+  // States for Author, Topic, Tags
+  const [author, setAuthor] = useState("Brian Maina");
+  const [topic, setTopic] = useState("General");
+  const [tags, setTags] = useState("");
 
   const [modal, setModal] = useState<{
     show: boolean;
@@ -120,6 +149,9 @@ export default function BlogsPage() {
     setFeaturedImage("");
     setPhotoCredit("");
     setBibliography("");
+    setAuthor("Brian Maina");
+    setTopic("General");
+    setTags("");
   };
 
   const openEditorForNew = () => {
@@ -136,6 +168,9 @@ export default function BlogsPage() {
     setFeaturedImage(blog.featuredImage || "");
     setPhotoCredit(blog.photoCredit || "");
     setBibliography(blog.bibliography || "");
+    setAuthor(blog.author || "Brian Maina");
+    setTopic(blog.topic || "General");
+    setTags(blog.tags ? blog.tags.join(', ') : "");
     setView('editor');
   };
 
@@ -148,8 +183,8 @@ export default function BlogsPage() {
     try {
       const method = editingId ? "PUT" : "POST";
       const payload = editingId
-        ? { id: editingId, title, description, content, featuredImage, photoCredit, isPublished, bibliography }
-        : { title, description, content, featuredImage, photoCredit, isPublished, bibliography };
+        ? { id: editingId, title, description, content, featuredImage, photoCredit, isPublished, bibliography, author, topic, tags }
+        : { title, description, content, featuredImage, photoCredit, isPublished, bibliography, author, topic, tags };
 
       const res = await fetch("/api/blogs", {
         method,
@@ -191,6 +226,9 @@ export default function BlogsPage() {
           featuredImage: blog.featuredImage,
           photoCredit: blog.photoCredit,
           bibliography: blog.bibliography,
+          author: blog.author,
+          topic: blog.topic,
+          tags: blog.tags ? blog.tags.join(',') : "", // Join array back to string for the API update payload
           isPublished: !blog.isPublished,
         }),
       });
@@ -343,7 +381,41 @@ export default function BlogsPage() {
                   />
                 </div>
 
-                <div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                  <div>
+                    <label className={labelClasses}>Author</label>
+                    <input
+                      type="text"
+                      value={author}
+                      onChange={(e) => setAuthor(e.target.value)}
+                      className={inputClasses}
+                      placeholder="Brian Maina"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelClasses}>Topic</label>
+                    <input
+                      type="text"
+                      value={topic}
+                      onChange={(e) => setTopic(e.target.value)}
+                      className={inputClasses}
+                      placeholder="e.g. Technology"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <label className={labelClasses}>Tags (comma separated)</label>
+                  <input
+                    type="text"
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                    className={inputClasses}
+                    placeholder="e.g. React, Nextjs, Tutorial"
+                  />
+                </div>
+
+                <div className="mt-6">
                   <div className="flex justify-between items-end mb-1.5">
                     <label className={`${labelClasses} mb-0`}>Short Description</label>
                     <span className={`text-xs font-semibold ${getWordCount(description) >= 20 ? 'text-amber-500' : 'text-gray-400 dark:text-gray-500'}`}>
@@ -488,7 +560,7 @@ export default function BlogsPage() {
                     fill
                     className="object-cover"
                     unoptimized
-                    priority // Add this single property!
+                    priority 
                   />
                 </div>
               )}
@@ -501,7 +573,11 @@ export default function BlogsPage() {
                   components={{
                     h1: ({ ...props }) => <h1 className="text-4xl font-extrabold mt-12 mb-6 text-gray-900 dark:text-gray-50 leading-tight transition-colors" {...props} />,
                     h2: ({ ...props }) => <h2 className="text-3xl font-bold mt-10 mb-4 text-gray-900 dark:text-gray-50 leading-tight transition-colors" {...props} />,
-                    h3: ({ ...props }) => <h3 className="text-2xl font-bold mt-8 mb-4 text-gray-900 dark:text-gray-50 leading-snug transition-colors" {...props} />,
+                    h3: ({ children, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => {
+                      // Dynamically create an ID so the APA anchor tags can jump to the references section
+                      const slug = String(children).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+                      return <h3 id={slug || undefined} className="text-2xl font-bold mt-8 mb-4 text-gray-900 dark:text-gray-50 leading-snug transition-colors" {...props}>{children}</h3>;
+                    },
                     p: ({ ...props }) => <p className="mb-6 text-lg text-gray-700 dark:text-gray-300 transition-colors" {...props} />,
                     ul: ({ ...props }) => <ul className="list-disc ml-6 mb-6 space-y-2 text-lg text-gray-700 dark:text-gray-300 marker:text-teal-500 dark:marker:text-teal-400 transition-colors" {...props} />,
                     ol: ({ ...props }) => <ol className="list-decimal ml-6 mb-6 space-y-2 text-lg text-gray-700 dark:text-gray-300 marker:text-teal-500 dark:marker:text-teal-400 transition-colors" {...props} />,

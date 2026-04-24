@@ -75,6 +75,9 @@ export interface BlogPost {
   photoCredit?: string;
   isPublished: boolean;
   bibliography?: string;
+  author?: string; // Added field
+  topic?: string;  // Added field
+  tags?: string[]; // Added field
   createdAt?: string;
   updatedAt?: string;
 }

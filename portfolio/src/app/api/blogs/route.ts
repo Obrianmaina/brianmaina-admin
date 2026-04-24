@@ -15,6 +15,9 @@ interface BlogUpdate {
   featuredImage: string;
   photoCredit: string;
   bibliography?: string; // We added the field here
+  author: string;
+  topic: string;
+  tags: string[];
   isPublished: boolean;
   updatedAt: Date;
 }
@@ -85,8 +88,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // We added bibliography to the extracted payload here
-    const { title, description, content, featuredImage, photoCredit, isPublished, bibliography } = await req.json();
+    const { title, description, content, featuredImage, photoCredit, isPublished, bibliography, author, topic, tags } = await req.json();
     
     if (!title || !content) {
       return NextResponse.json({ error: "Missing required fields (title or content)" }, { status: 400 });
@@ -96,6 +98,9 @@ export async function POST(req: NextRequest) {
     const client = await clientPromise;
     const db = client.db(DB_NAME);
     
+    // Process comma separated tags into an array
+    const parsedTags = typeof tags === 'string' ? tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : (tags || []);
+
     const newBlog = {
       title,
       slug,
@@ -103,7 +108,10 @@ export async function POST(req: NextRequest) {
       content,
       featuredImage,
       photoCredit,
-      bibliography, // We added the field to the database object here
+      bibliography,
+      author: author || "Brian Maina",
+      topic: topic || "General",
+      tags: parsedTags,
       isPublished: !!isPublished,
       createdAt: new Date(),
       updatedAt: new Date()
@@ -125,8 +133,7 @@ export async function PUT(req: NextRequest) {
 
   try {
     const body = await req.json();
-    // We added bibliography to the extracted payload here
-    const { id, title, description, content, featuredImage, photoCredit, isPublished, bibliography } = body;
+    const { id, title, description, content, featuredImage, photoCredit, isPublished, bibliography, author, topic, tags } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Blog ID is required for updating" }, { status: 400 });
@@ -139,13 +146,19 @@ export async function PUT(req: NextRequest) {
     const client = await clientPromise;
     const db = client.db(DB_NAME);
 
+    // Process comma separated tags into an array
+    const parsedTags = typeof tags === 'string' ? tags.split(',').map((tag: string) => tag.trim()).filter(Boolean) : (tags || []);
+
     const updateData: BlogUpdate = {
       title,
       description,
       content,
       featuredImage,
       photoCredit,
-      bibliography, // We added the field to the update object here
+      bibliography,
+      author: author || "Brian Maina",
+      topic: topic || "General",
+      tags: parsedTags,
       isPublished: !!isPublished,
       updatedAt: new Date()
     };
