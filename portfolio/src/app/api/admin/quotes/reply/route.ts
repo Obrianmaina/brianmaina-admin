@@ -54,11 +54,8 @@ export async function POST(req: Request) {
       const { data, error } = await resend.emails.send({
         from: "Brian Maina <brian@brianmaina.de>",
         to: email,
-        // Pass an array of strings to use multiple addresses
-        replyTo: [
-          "brian@brianmaina.de", 
-          `reply+${id}@ydimita.resend.app`
-        ], 
+        // Using your custom subdomain with the Name Mask for a clean look
+        replyTo: `Brian Maina <reply+${id}@reply.brianmaina.de>`, 
         subject: subject,
         html: htmlContent,
         text: message,
