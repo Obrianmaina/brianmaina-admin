@@ -33,21 +33,30 @@ export async function GET() {
   }
 }
 
-// PATCH to update quote status, notes, and last contacted date
+// PATCH to update quote status, notes, last contacted date, OR an email's status
 export async function PATCH(req: Request) {
   try {
     const cookieStore = await cookies();
     if (!cookieStore.get("admin_session"))
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { id, status, notes, lastContactedDate } = await req.json();
+    const { id, status, notes, lastContactedDate, emailId, emailStatus } = await req.json();
     const client = await clientPromise;
     const db = client.db("portfolio");
 
-    const updateData: QuoteUpdateData = { updatedAt: new Date() };
+    // 1. If updating an email inside the quote's emailHistory array
+    if (emailId && emailStatus) {
+      await db.collection("quotes").updateOne(
+        { _id: new ObjectId(id), "emailHistory.id": emailId },
+        { $set: { "emailHistory.$.status": emailStatus } }
+      );
+      return NextResponse.json({ success: true }, { status: 200 });
+    }
 
+    // 2. Otherwise, standard quote update
+    const updateData: QuoteUpdateData = { updatedAt: new Date() };
     if (status != null) updateData.status = status;
-    if (notes != null) updateData.notes = notes;       // handles "", "some text", but not null/undefined
+    if (notes != null) updateData.notes = notes;       
     if (lastContactedDate != null) updateData.lastContactedDate = lastContactedDate;
 
     await db.collection("quotes").updateOne(
@@ -58,6 +67,30 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {
     console.error("Update Quote Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
+
+// DELETE to remove a lead entirely
+export async function DELETE(req: Request) {
+  try {
+    const cookieStore = await cookies();
+    if (!cookieStore.get("admin_session"))
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const url = new URL(req.url);
+    const id = url.searchParams.get("id");
+
+    if (!id) return NextResponse.json({ error: "Missing Quote ID" }, { status: 400 });
+
+    const client = await clientPromise;
+    const db = client.db("portfolio");
+
+    await db.collection("quotes").deleteOne({ _id: new ObjectId(id) });
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    console.error("Delete Quote Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }

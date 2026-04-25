@@ -151,12 +151,12 @@ export interface CatalogBundle {
 }
 
 export interface SentEmail {
-  id: string; // Add a unique ID for editing
+  id: string;
   subject: string;
   body: string;
   sentAt: string;
   resendId?: string | null;
-  status: "draft" | "scheduled" | "sent" | "received";
+  status: "draft" | "scheduled" | "sent" | "received" | "trash"; // NEW: added "trash"
 }
 
 export interface Quote {

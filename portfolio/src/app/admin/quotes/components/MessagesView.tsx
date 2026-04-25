@@ -1,51 +1,75 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Clock, Send, Edit3, Mail, FileText, MessageSquare, Reply } from "lucide-react";
+import { Clock, Send, Edit3, Mail, FileText, MessageSquare, Reply, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Quote, SentEmail } from "@/types";
+import ConfirmModal from "@/components/ConfirmModal";
 
 interface MessagesViewProps {
   quotes: Quote[];
   onOpenDraft: (quote: Quote, email?: SentEmail) => void;
+  onUpdateEmailStatus: (quoteId: string, emailId: string, status: string) => void;
 }
 
 type GlobalEmail = SentEmail & { quote: Quote };
+type TabId = "all" | "received" | "draft" | "scheduled" | "sent" | "trash";
 
-// Use exact status names as Tab IDs to prevent mismatches. Added "received"
-type TabId = "all" | "received" | "draft" | "scheduled" | "sent";
+const ITEMS_PER_PAGE = 10;
 
-export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps) {
+export default function MessagesView({ quotes, onOpenDraft, onUpdateEmailStatus }: MessagesViewProps) {
   const [activeTab, setActiveTab] = useState<TabId>("all");
   const [now, setNow] = useState(Date.now());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [emailToDelete, setEmailToDelete] = useState<{quoteId: string, emailId: string} | null>(null);
+
+  // Reset page when tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // Aggregate and normalize all emails
   const allEmails: GlobalEmail[] = quotes.flatMap(quote => 
     (quote.emailHistory || []).map(email => {
       const sendTimeMs = new Date(email.sentAt).getTime() + 60000;
-      
-      // Fallback to "sent" for older emails that don't have a status field
       let computedStatus = email.status || "sent"; 
       
-      // If a scheduled email's time has passed, mark it as sent
       if (computedStatus === "scheduled" && sendTimeMs <= now) {
         computedStatus = "sent";
       }
-      
-      // Cast safely to SentEmail["status"] instead of TabId
       return { ...email, quote, status: computedStatus as SentEmail["status"] };
     })
   ).sort((a, b) => new Date(b.sentAt).getTime() - new Date(a.sentAt).getTime());
 
   // Filter based on active tab
   const filteredEmails = allEmails.filter(email => {
-    if (activeTab === "all") return true;
+    if (activeTab === "all") return email.status !== "trash"; // Don't show trash in 'All'
     return email.status === activeTab;
   });
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredEmails.length / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedEmails = filteredEmails.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  const handleDelete = (quoteId: string, emailId: string) => {
+     setEmailToDelete({ quoteId, emailId });
+  };
+
+  // NEW: Function to actually execute the move to trash
+  const executeTrashEmail = () => {
+    if (emailToDelete) {
+      onUpdateEmailStatus(emailToDelete.quoteId, emailToDelete.emailId, "trash");
+      setEmailToDelete(null); // Close modal
+    }
+  };
+
+  const handleRestore = (quoteId: string, emailId: string) => {
+    onUpdateEmailStatus(quoteId, emailId, "sent"); // Restore defaults to sent
+  };
 
   return (
     <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
@@ -58,6 +82,7 @@ export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps)
           { id: "scheduled", label: "Outgoing (Scheduled)", icon: <Clock size={16} /> },
           { id: "draft", label: "Drafts", icon: <FileText size={16} /> },
           { id: "sent", label: "Sent", icon: <Send size={16} /> },
+          { id: "trash", label: "Trash", icon: <Trash2 size={16} /> },
         ].map((tab) => (
           <button 
             key={tab.id}
@@ -67,7 +92,7 @@ export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps)
           >
             {tab.icon} {tab.label}
             <span className="bg-gray-200 dark:bg-gray-800 text-xs py-0.5 px-2 rounded-full font-bold ml-1">
-              {allEmails.filter(e => tab.id === "all" ? true : e.status === tab.id).length}
+              {allEmails.filter(e => tab.id === "all" ? e.status !== "trash" : e.status === tab.id).length}
             </span>
           </button>
         ))}
@@ -75,16 +100,17 @@ export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps)
 
       {/* List */}
       <div className="divide-y divide-gray-100 dark:divide-gray-800">
-        {filteredEmails.length === 0 ? (
+        {paginatedEmails.length === 0 ? (
           <div className="text-center py-20 text-gray-400">
             <Mail className="mx-auto mb-4 opacity-50" size={48} />
             <p>No emails found in this category.</p>
           </div>
         ) : (
-          filteredEmails.map((email) => {
+          paginatedEmails.map((email) => {
             const isScheduled = email.status === "scheduled";
             const isDraft = email.status === "draft";
             const isReceived = email.status === "received";
+            const isTrash = email.status === "trash";
             const sendTimeMs = new Date(email.sentAt).getTime() + 60000;
             const secondsLeft = Math.max(0, Math.ceil((sendTimeMs - now) / 1000));
 
@@ -93,7 +119,11 @@ export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps)
                 
                 {/* Status Icon */}
                 <div className="flex-shrink-0 mt-1">
-                  {isReceived ? (
+                  {isTrash ? (
+                    <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/50 flex items-center justify-center text-red-600 dark:text-red-400">
+                      <Trash2 size={20} />
+                    </div>
+                  ) : isReceived ? (
                     <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shadow-sm border border-indigo-200 dark:border-indigo-800/50">
                       <MessageSquare size={20} />
                     </div>
@@ -129,7 +159,6 @@ export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps)
                     )}
                   </div>
 
-                  {/* Message Bubble Styling */}
                   <p className={`text-sm line-clamp-3 p-4 rounded-xl border ${isReceived ? 'bg-indigo-50 dark:bg-indigo-900/20 border-indigo-100 dark:border-indigo-800/50 text-gray-800 dark:text-gray-200' : 'bg-white dark:bg-gray-950 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300'}`}>
                     {email.body}
                   </p>
@@ -137,47 +166,96 @@ export default function MessagesView({ quotes, onOpenDraft }: MessagesViewProps)
 
                 {/* Actions */}
                 <div className="flex flex-col items-end gap-2 w-36 flex-shrink-0">
-                  {isReceived && (
+                  {isTrash ? (
                     <button 
-                      onClick={() => onOpenDraft(email.quote)}
-                      className="w-full flex justify-center items-center gap-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2.5 rounded-lg transition-colors shadow-sm"
+                      onClick={() => handleRestore(email.quote._id, email.id)}
+                      className="w-full flex justify-center items-center gap-1.5 text-xs font-bold bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-3 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors"
                     >
-                      <Reply size={14} /> Reply
+                      <Reply size={14} /> Restore
                     </button>
-                  )}
-                  {isScheduled && (
+                  ) : (
                     <>
-                      <span className="animate-pulse bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded w-full text-center">
-                        Leaves in {secondsLeft}s
-                      </span>
+                      {isReceived && (
+                        <button 
+                          onClick={() => onOpenDraft(email.quote)}
+                          className="w-full flex justify-center items-center gap-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg transition-colors shadow-sm"
+                        >
+                          <Reply size={14} /> Reply
+                        </button>
+                      )}
+                      {isScheduled && (
+                        <>
+                          <span className="animate-pulse bg-amber-200 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300 text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded w-full text-center">
+                            Leaves in {secondsLeft}s
+                          </span>
+                          <button 
+                            onClick={() => onOpenDraft(email.quote, email)}
+                            className="w-full flex justify-center items-center gap-1 text-xs font-bold bg-white dark:bg-gray-800 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-500 px-3 py-2 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"
+                          >
+                            <Edit3 size={14} /> Edit
+                          </button>
+                        </>
+                      )}
+                      {isDraft && (
+                        <button 
+                          onClick={() => onOpenDraft(email.quote, email)}
+                          className="w-full flex justify-center items-center gap-1 text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
+                        >
+                          <Edit3 size={14} /> Resume
+                        </button>
+                      )}
                       <button 
-                        onClick={() => onOpenDraft(email.quote, email)}
-                        className="w-full flex justify-center items-center gap-1 text-xs font-bold bg-white dark:bg-gray-800 border border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-500 px-3 py-2 rounded-lg hover:bg-amber-50 dark:hover:bg-amber-900/30 transition-colors"
+                        onClick={() => handleDelete(email.quote._id, email.id)}
+                        className="w-full flex justify-center items-center gap-1.5 text-xs font-bold bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/40 text-red-600 dark:text-red-400 px-3 py-2 rounded-lg transition-colors"
                       >
-                        <Edit3 size={14} /> Cancel & Edit
+                        <Trash2 size={14} /> Delete
                       </button>
                     </>
                   )}
-                  {isDraft && (
-                    <button 
-                      onClick={() => onOpenDraft(email.quote, email)}
-                      className="w-full flex justify-center items-center gap-1 text-xs font-bold bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-2 rounded-lg hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors"
-                    >
-                      <Edit3 size={14} /> Resume Draft
-                    </button>
-                  )}
-                  {(!isScheduled && !isDraft && !isReceived) && (
-                    <span className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-[10px] uppercase tracking-wider font-bold px-2 py-1 rounded w-full text-center">
-                      Delivered
-                    </span>
-                  )}
                 </div>
-
               </div>
             );
           })
         )}
       </div>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="px-6 py-4 border-t border-gray-100 dark:border-gray-800 flex items-center justify-between bg-gray-50/50 dark:bg-gray-900/50">
+          <span className="text-sm text-gray-500 dark:text-gray-400">
+            Showing <span className="font-semibold text-gray-900 dark:text-gray-100">{startIndex + 1}</span> to <span className="font-semibold text-gray-900 dark:text-gray-100">{Math.min(startIndex + ITEMS_PER_PAGE, filteredEmails.length)}</span> of <span className="font-semibold text-gray-900 dark:text-gray-100">{filteredEmails.length}</span> messages
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="p-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-white dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={16} className="text-gray-600 dark:text-gray-300" />
+            </button>
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 px-2">
+              Page {currentPage} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="p-2 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-white dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight size={16} className="text-gray-600 dark:text-gray-300" />
+            </button>
+          </div>
+
+        </div>
+      )}
+      {/* NEW: Confirm Modal for Emails */}
+      <ConfirmModal
+        isOpen={emailToDelete !== null}
+        onClose={() => setEmailToDelete(null)}
+        onConfirm={executeTrashEmail}
+        title="Move to Trash"
+        message="Are you sure you want to move this message to the trash? You can restore it later from the Trash tab."
+        confirmText="Move to Trash"
+      />
     </div>
   );
 }

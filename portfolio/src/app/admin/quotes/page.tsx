@@ -9,6 +9,7 @@ import QuotesTable from "./components/QuotesTable";
 import MessagesView from "./components/MessagesView";
 import { Quote, SentEmail } from "@/types";
 import EmailReplyModal from "./components/EmailReplyModal";
+import ConfirmModal from "@/components/ConfirmModal";
 
 export default function QuotesPage() {
   const router = useRouter();
@@ -17,7 +18,7 @@ export default function QuotesPage() {
   const [view, setView] = useState<"list" | "kanban" | "messages">("list");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [editingNotes, setEditingNotes] = useState<{ [id: string]: string }>({});
-  
+  const [leadToDelete, setLeadToDelete] = useState<string | null>(null);
   // Modal State
   const [replyLead, setReplyLead] = useState<Quote | null>(null);
   const [editEmailData, setEditEmailData] = useState<SentEmail | undefined>(undefined);
@@ -70,6 +71,39 @@ export default function QuotesPage() {
     } catch {}
   };
 
+  // UPDATED: Execute deletion without the native prompt
+  const executeDeleteLead = async () => {
+    if (!leadToDelete) return;
+    
+    try {
+      const res = await fetch(`/api/admin/quotes?id=${leadToDelete}`, { method: "DELETE" });
+      if (res.ok) {
+        setQuotes((prev) => prev.filter((q) => q._id !== leadToDelete));
+        setModal({ show: true, type: "success", title: "Deleted", message: "Lead removed successfully." });
+      }
+    } catch (error) {
+      setModal({ show: true, type: "error", title: "Error", message: "Failed to delete lead." });
+    } finally {
+      setLeadToDelete(null); // Close the modal
+    }
+  };
+
+  // NEW: Move Email to Trash Function
+  const updateEmailStatus = async (quoteId: string, emailId: string, newStatus: string) => {
+    try {
+      const res = await fetch("/api/admin/quotes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: quoteId, emailId, emailStatus: newStatus }),
+      });
+      if (res.ok) {
+        fetchQuotes(); // Refresh to get updated email array
+      }
+    } catch (error) {
+      console.error("Failed to update email status", error);
+    }
+  };
+
   const handleAddLead = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -96,7 +130,7 @@ export default function QuotesPage() {
     setEditEmailData(emailToEdit);
   };
 
-  return (
+return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950 py-12 px-6 transition-colors duration-300">
       <div className="max-w-7xl mx-auto bg-white dark:bg-gray-900 p-8 rounded-2xl shadow-lg dark:shadow-none border border-gray-100 dark:border-gray-800 transition-colors duration-300">
 
@@ -132,11 +166,26 @@ export default function QuotesPage() {
         {loading ? (
           <div className="text-center py-12 text-gray-500">Loading...</div>
         ) : view === "messages" ? (
-          <MessagesView quotes={quotes} onOpenDraft={openComposer} />
+          <MessagesView 
+            quotes={quotes} 
+            onOpenDraft={openComposer} 
+            onUpdateEmailStatus={updateEmailStatus} 
+          />
         ) : view === "kanban" ? (
           <KanbanBoard quotes={quotes} onStatusChange={(id, status) => updateLead(id, { status })} onReply={(quote) => openComposer(quote)} />
         ) : (
-          <QuotesTable quotes={quotes} expandedId={expandedId} editingNotes={editingNotes} onToggleExpand={setExpandedId} onUpdateLead={updateLead} onNotesSave={(id) => updateLead(id, { notes: editingNotes[id] })} onContactDateUpdate={(id) => updateLead(id, { lastContactedDate: new Date().toISOString() })} onNotesChange={(id, val) => setEditingNotes(p => ({...p, [id]: val}))} onReply={(quote) => openComposer(quote)} />
+          <QuotesTable 
+             quotes={quotes} 
+             expandedId={expandedId} 
+             editingNotes={editingNotes} 
+             onToggleExpand={setExpandedId} 
+             onUpdateLead={updateLead} 
+             onDeleteLead={(id) => setLeadToDelete(id)} 
+             onNotesSave={(id) => updateLead(id, { notes: editingNotes[id] })} 
+             onContactDateUpdate={(id) => updateLead(id, { lastContactedDate: new Date().toISOString() })} 
+             onNotesChange={(id, val) => setEditingNotes(p => ({...p, [id]: val}))} 
+             onReply={(quote) => openComposer(quote)} 
+          />
         )}
       </div>
 
@@ -183,6 +232,15 @@ export default function QuotesPage() {
         </div>
       )}
 
+      {/* NEW: Custom Confirm Modal moved outside the showAddModal block! */}
+      <ConfirmModal
+        isOpen={leadToDelete !== null}
+        onClose={() => setLeadToDelete(null)}
+        onConfirm={executeDeleteLead}
+        title="Delete Lead"
+        message="Are you sure you want to permanently delete this lead? This action cannot be undone and will remove all associated messages."
+      />
+
       <AdminModal modal={modal} close={() => setModal(p => ({...p, show: false}))} />
 
       {replyLead && (
@@ -192,14 +250,14 @@ export default function QuotesPage() {
           onClose={() => { 
             setReplyLead(null); 
             setEditEmailData(undefined); 
-            fetchQuotes(); // Ensures closing the modal refreshes the view
+            fetchQuotes(); 
           }}
           onSuccess={() => {
             setReplyLead(null); 
             setEditEmailData(undefined); 
             fetchQuotes();
           }}
-          onRefresh={() => fetchQuotes()} // Triggers background UI refresh
+          onRefresh={() => fetchQuotes()} 
         />
       )}
     </main>

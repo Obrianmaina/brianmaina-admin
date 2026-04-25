@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Clock, Calendar, MessageSquare, ChevronDown, ChevronUp } from "lucide-react";
+import { Mail, Clock, Calendar, MessageSquare, ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import { Quote } from "@/types";
 
 interface QuotesTableProps {
@@ -15,6 +15,7 @@ interface QuotesTableProps {
   onContactDateUpdate: (id: string) => void;
   onNotesChange: (id: string, value: string) => void;
   onReply: (quote: Quote) => void;
+  onDeleteLead: (id: string) => void;
 }
 
 const getStatusColor = (status: string) => {
@@ -34,6 +35,7 @@ export default function QuotesTable({
   editingNotes,
   onToggleExpand,
   onUpdateLead,
+  onDeleteLead, // <--- ADD HERE
   onNotesSave,
   onContactDateUpdate,
   onNotesChange,
@@ -126,6 +128,14 @@ export default function QuotesTable({
                     className="inline-flex items-center px-3 py-1.5 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs font-bold rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
                   >
                     Create Invoice
+                  </button>
+                  {/* NEW DELETE BUTTON */}
+                  <button
+                    onClick={() => onDeleteLead(quote._id)}
+                    className="inline-flex items-center px-3 py-1.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-xs font-bold rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 ml-2"
+                    title="Delete Lead"
+                  >
+                    <Trash2 size={16} />
                   </button>
                 </td>
               </tr>
