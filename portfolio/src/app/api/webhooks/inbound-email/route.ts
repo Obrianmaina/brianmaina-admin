@@ -5,6 +5,7 @@ import clientPromise from '@/lib/mongodb';
 import crypto from 'crypto';
 import { SentEmail } from "@/types";
 import { Document, ObjectId } from "mongodb";
+import { Resend } from 'resend'; // NEW: Import the Resend SDK
 
 export async function POST(req: Request) {
   try {
@@ -53,10 +54,22 @@ export async function POST(req: Request) {
     const fromAddress = emailData.from;
     const subject = emailData.subject || "Re: Your Quote";
     
-    // Get the plain text body (strip HTML if Resend provides both)
-    const textBody = emailData.text || emailData.html || "No content provided.";
+    // 4. Fetch the full email content from Resend using the email_id
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const emailId = emailData.email_id;
+    let textBody = "No content provided.";
 
-    // 4. Extract the Quote ID from the To address (e.g., reply+60f1b... @reply.brianmaina.de)
+    if (emailId) {
+      const { data: fullEmail, error } = await resend.emails.get(emailId);
+      
+      if (fullEmail) {
+        textBody = fullEmail.text || fullEmail.html || "No content provided.";
+      } else if (error) {
+        console.error("Failed to fetch full email body from Resend:", error);
+      }
+    }
+
+    // 5. Extract the Quote ID from the To address (e.g., reply+60f1b... @reply.brianmaina.de)
     const match = toAddress.match(/reply\+(.+)@/);
     const quoteId = match ? match[1] : null;
 
@@ -65,12 +78,12 @@ export async function POST(req: Request) {
 
     let targetQuote = null;
 
-    // 5. Try to find the quote using the extracted ID
+    // 6. Try to find the quote using the extracted ID
     if (quoteId && ObjectId.isValid(quoteId)) {
        targetQuote = await db.collection("quotes").findOne({ _id: new ObjectId(quoteId) });
     }
 
-    // 6. Fallback: Match by sender's email address if plus-addressing failed
+    // 7. Fallback: Match by sender's email address if plus-addressing failed
     if (!targetQuote) {
         const emailMatch = fromAddress.match(/<(.+)>/);
         const cleanEmail = emailMatch ? emailMatch[1] : fromAddress;
