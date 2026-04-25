@@ -60,7 +60,8 @@ export async function POST(req: Request) {
     let textBody = "No content provided.";
 
     if (emailId) {
-      const { data: fullEmail, error } = await resend.emails.get(emailId);
+      // FIX: Use .receiving.get() for inbound emails
+      const { data: fullEmail, error } = await resend.emails.receiving.get(emailId);
       
       if (fullEmail) {
         textBody = fullEmail.text || fullEmail.html || "No content provided.";
