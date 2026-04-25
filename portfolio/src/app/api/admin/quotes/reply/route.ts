@@ -46,7 +46,11 @@ export async function POST(req: Request) {
       const { data, error } = await resend.emails.send({
         from: "Brian Maina <brian@brianmaina.de>",
         to: email,
-        replyTo: `reply+${id}@reply.brianmaina.de`, // Updated to camelCase
+        // Pass an array of strings to use multiple addresses
+        replyTo: [
+          "brian@brianmaina.de", 
+          `reply+${id}@ydimita.resend.app`
+        ], 
         subject: subject,
         html: htmlContent,
         text: message,
