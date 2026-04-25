@@ -22,6 +22,14 @@ interface QuoteDoc {
   lastContactedDate?: string;
   emailHistory?: EmailRecord[];
 }
+// Add this right above the POST function
+export async function GET() {
+  return NextResponse.json({ 
+    status: "success", 
+    message: "The Inbound Email Webhook route is officially live!" 
+  });
+}
+
 
 export async function POST(req: Request) {
   try {
