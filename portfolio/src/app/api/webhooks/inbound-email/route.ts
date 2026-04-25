@@ -5,7 +5,8 @@ import clientPromise from '@/lib/mongodb';
 import crypto from 'crypto';
 import { SentEmail } from "@/types";
 import { Document, ObjectId } from "mongodb";
-import { Resend } from 'resend'; // NEW: Import the Resend SDK
+import { Resend } from 'resend';
+import EmailReplyParser from 'email-reply-parser'; // NEW: Import the parser
 
 export async function POST(req: Request) {
   try {
@@ -60,11 +61,14 @@ export async function POST(req: Request) {
     let textBody = "No content provided.";
 
     if (emailId) {
-      // FIX: Use .receiving.get() for inbound emails
+      // Use .receiving.get() for inbound emails
       const { data: fullEmail, error } = await resend.emails.receiving.get(emailId);
       
       if (fullEmail) {
-        textBody = fullEmail.text || fullEmail.html || "No content provided.";
+        // Use the parser to extract only the visible reply text
+        const rawText = fullEmail.text || "No content provided.";
+        // FIX: Added 'new' and '()' to instantiate the class
+        textBody = new EmailReplyParser().read(rawText).getVisibleText();
       } else if (error) {
         console.error("Failed to fetch full email body from Resend:", error);
       }
