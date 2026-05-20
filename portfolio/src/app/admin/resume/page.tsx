@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, GraduationCap, Plus, Trash2, Pencil } from "lucide-react";
+import { ArrowLeft, GraduationCap, Plus, Trash2, Pencil, GripVertical } from "lucide-react";
 import AdminModal from "@/components/AdminModal";
 import { TimelineSection, TimelineEntry } from "@/types";
 
@@ -20,6 +20,7 @@ export default function ResumeCMS() {
   const [activeTab, setActiveTab] = useState<'experience' | 'education' | 'skills'>('experience');
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
   
   // Timeline Section Form
   const [heading, setHeading] = useState("");
@@ -168,6 +169,48 @@ export default function ResumeCMS() {
     });
   };
 
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIdx(index);
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // Necessary to allow dropping
+    e.dataTransfer.dropEffect = "move";
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === dropIndex) return;
+
+    // Determine which list is active
+    const list = activeTab === 'experience' ? [...experience] : [...education];
+    const draggedItem = list[draggedIdx];
+
+    // Reorder locally
+    list.splice(draggedIdx, 1);
+    list.splice(dropIndex, 0, draggedItem);
+
+    // Update state to show changes immediately
+    if (activeTab === 'experience') setExperience(list);
+    else setEducation(list);
+
+    setDraggedIdx(null);
+
+    // Prepare payload with new order indexes and push to the API
+    const itemsWithNewOrder = list.map((item, idx) => ({ id: item._id, order: idx }));
+    
+    try {
+      await fetch("/api/admin/resume", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section: activeTab, items: itemsWithNewOrder })
+      });
+    } catch (error) {
+      setModal({ show: true, type: 'error', title: 'Error', message: 'Failed to save the new order.' });
+    }
+  };
+
   const inputClasses = "w-full p-3 border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-xl outline-none focus:ring-2 focus:ring-orange-500 transition-colors";
 
   return (
@@ -245,24 +288,39 @@ export default function ResumeCMS() {
           <div>
             {(activeTab === 'experience' || activeTab === 'education') && (
               <div className="space-y-6">
-                {(activeTab === 'experience' ? experience : education).map((section) => (
-                  <div key={section._id} className="border border-gray-200 dark:border-gray-800 rounded-2xl p-6 bg-white dark:bg-gray-900 flex justify-between group hover:border-orange-200 dark:hover:border-orange-500/50 transition-colors shadow-sm dark:shadow-none">
-                    <div className="w-full">
-                      <h4 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 border-b border-gray-100 dark:border-gray-800 pb-2 inline-block transition-colors">{section.heading}</h4>
-                      {section.entries.map((entry: TimelineEntry, idx: number) => (
-                        <div key={idx} className="mb-6 last:mb-0">
-                          <h5 className="font-semibold text-gray-800 dark:text-gray-200 text-lg transition-colors">{entry.title}</h5>
-                          <p className="text-sm text-orange-600 dark:text-orange-400 mb-3 font-medium transition-colors">{entry.date}</p>
-                          {Array.isArray(entry.description) ? (
-                            <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600 dark:text-gray-400 transition-colors">
-                              {entry.description.map((item: string, i: number) => <li key={i}>{item}</li>)}
-                            </ul>
-                          ) : (
-                            <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">{entry.description}</p>
-                          )}
-                        </div>
-                      ))}
+                {(activeTab === 'experience' ? experience : education).map((section, idx) => (
+                  <div 
+                    key={section._id} 
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, idx)}
+                    className={`border border-gray-200 dark:border-gray-800 rounded-2xl p-6 bg-white dark:bg-gray-900 flex justify-between group hover:border-orange-200 dark:hover:border-orange-500/50 transition-colors shadow-sm dark:shadow-none ${draggedIdx === idx ? 'opacity-50 border-orange-500 border-dashed' : ''}`}
+                  >
+                    <div className="flex gap-4 w-full">
+                      {/* Drag Handle Icon */}
+                      <div className="flex flex-col pt-1 text-gray-300 dark:text-gray-700 cursor-grab active:cursor-grabbing hover:text-orange-500 dark:hover:text-orange-400 transition-colors">
+                        <GripVertical size={24} />
+                      </div>
+                      
+                      <div className="w-full">
+                        <h4 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 border-b border-gray-100 dark:border-gray-800 pb-2 inline-block transition-colors">{section.heading}</h4>
+                        {section.entries.map((entry: TimelineEntry, entryIdx: number) => (
+                          <div key={entryIdx} className="mb-6 last:mb-0">
+                            <h5 className="font-semibold text-gray-800 dark:text-gray-200 text-lg transition-colors">{entry.title}</h5>
+                            <p className="text-sm text-orange-600 dark:text-orange-400 mb-3 font-medium transition-colors">{entry.date}</p>
+                            {Array.isArray(entry.description) ? (
+                              <ul className="list-disc pl-5 space-y-1 text-sm text-gray-600 dark:text-gray-400 transition-colors">
+                                {entry.description.map((item: string, i: number) => <li key={i}>{item}</li>)}
+                              </ul>
+                            ) : (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 transition-colors">{entry.description}</p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                    
                     <div className="flex gap-2 self-start ml-4 shrink-0">
                       <button onClick={() => handleEditTimeline(section)} className="text-gray-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 p-2 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500" title="Edit Entry">
                         <Pencil size={20} />

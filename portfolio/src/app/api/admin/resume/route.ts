@@ -101,3 +101,36 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
 }
+
+// PATCH to update the order of multiple entries (Requires admin)
+export async function PATCH(req: Request) {
+  try {
+    const cookieStore = await cookies();
+    if (!cookieStore.get("admin_session")) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const data = await req.json();
+    const { section, items } = data; // items is an array: [{ id: string, order: number }]
+
+    if (!section || !items || !Array.isArray(items)) {
+      return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db("portfolio");
+
+    // Perform a bulk update to set the new order value for each item
+    const bulkOps = items.map((item: { id: string; order: number }) => ({
+      updateOne: {
+        filter: { _id: new ObjectId(item.id) },
+        update: { $set: { order: item.order } },
+      },
+    }));
+
+    await db.collection(section).bulkWrite(bulkOps);
+
+    return NextResponse.json({ success: true }, { status: 200 });
+  } catch (error) {
+    console.error("Reorder Resume API Error:", error);
+    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+  }
+}
