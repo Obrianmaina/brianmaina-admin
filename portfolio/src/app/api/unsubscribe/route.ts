@@ -33,7 +33,7 @@ export async function POST(req: Request) {
 
     // 3. Send the personalized goodbye email
     await resend.emails.send({
-      from: "Brian Maina <hello@brianmaina.de>", 
+      from: "Brian Maina <hello@brianmaina.stream>", 
       to: email,
       subject: "You have been unsubscribed",
       react: GoodbyeEmail({ nickname: userNickname }),

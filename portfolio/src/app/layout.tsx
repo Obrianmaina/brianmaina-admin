@@ -18,7 +18,7 @@ const geistMono = Geist_Mono({
 
 // Update your global metadata here
 export const metadata: Metadata = {
-  metadataBase: new URL('https://brianmaina.de/'), // Replace with your actual live domain
+  metadataBase: new URL('https://brianmaina.stream/'), // Replace with your actual live domain
   title: 'Brian Maina Nyawira | Visual Designer & IT Professional',
   description: 'The professional portfolio of Brian Maina Nyawira, showcasing work in UI/UX, presentation design, branding, and graphics.',
   openGraph: {

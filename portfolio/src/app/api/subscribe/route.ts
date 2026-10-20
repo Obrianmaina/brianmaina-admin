@@ -48,7 +48,7 @@ export async function POST(request: Request) {
 
     // Send the verification email
     await resend.emails.send({
-      from: 'Brian Maina <hello@brianmaina.de>', 
+      from: 'Brian Maina <hello@brianmaina.stream>', 
       to: email,
       subject: 'Please verify your blog subscription',
       react: VerificationEmail({ verifyLink: verifyLink, nickname: finalNickname }), 

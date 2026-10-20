@@ -97,7 +97,7 @@ export async function POST(req: Request) {
       const downloadLink = `${process.env.NEXT_PUBLIC_BASE_URL}/documents`;
 
       await resend.emails.send({
-        from: "Brian Maina <hello@brianmaina.de>",
+        from: "Brian Maina <hello@brianmaina.stream>",
         to: clientEmail,
         subject: type === 'invoice' ? `Invoice from Brian Maina (#${referenceNumber})` : `Receipt from Brian Maina (#${referenceNumber})`,
         react: TransactionEmail({ 
@@ -167,7 +167,7 @@ export async function PUT(req: Request) {
       const downloadLink = `${process.env.NEXT_PUBLIC_BASE_URL}/documents`;
 
       await resend.emails.send({
-        from: "Brian Maina <hello@brianmaina.de>",
+        from: "Brian Maina <hello@brianmaina.stream>",
         to: transaction.clientEmail,
         subject: `Receipt from Brian Maina (#${transaction.referenceNumber})`,
         react: TransactionEmail({ 

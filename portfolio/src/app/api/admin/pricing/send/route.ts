@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
     // Send using React Email template
     await resend.emails.send({
-      from: "Brian Maina <hello@brianmaina.de>",
+      from: "Brian Maina <hello@brianmaina.stream>",
       to: pricingList.clientEmail,
       subject: `Pricing Estimate: ${pricingList.title}`,
       react: PricingListEmail({

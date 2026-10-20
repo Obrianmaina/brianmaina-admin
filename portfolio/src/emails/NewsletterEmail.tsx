@@ -9,7 +9,7 @@ interface NewsletterEmailProps {
 }
 
 export default function NewsletterEmail({ nickname, userEmail, message, imageUrl }: NewsletterEmailProps) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://brianmaina.de";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://brianmaina.stream";
 
   return (
     <Html>
@@ -43,7 +43,7 @@ export default function NewsletterEmail({ nickname, userEmail, message, imageUrl
             </Text>
 
             <Text style={finePrint}>
-              You are receiving this because you opted in at brianmaina.de. If you prefer not to get these updates, you can reply &ldquo;Unsubscribe&rdquo; or <Link href={`${baseUrl}/unsubscribe?email=${userEmail}`} style={link}>click here to unsubscribe</Link> at any time. (Sent to: {userEmail})
+              You are receiving this because you opted in at brianmaina.stream. If you prefer not to get these updates, you can reply &ldquo;Unsubscribe&rdquo; or <Link href={`${baseUrl}/unsubscribe?email=${userEmail}`} style={link}>click here to unsubscribe</Link> at any time. (Sent to: {userEmail})
             </Text>
           </Section>
         </Container>

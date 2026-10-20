@@ -7,7 +7,7 @@ interface SubscriptionConfirmedEmailProps {
 }
 
 export default function SubscriptionConfirmedEmail({ nickname, userEmail }: SubscriptionConfirmedEmailProps) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://brianmaina.de";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://brianmaina.stream";
 
   return (
     <Html>
@@ -36,7 +36,7 @@ export default function SubscriptionConfirmedEmail({ nickname, userEmail }: Subs
             </Text>
 
             <Text style={finePrint}>
-              You are receiving this because you opted in at brianmaina.de. <Link href={`${baseUrl}/unsubscribe?email=${userEmail}`} style={link}>Unsubscribe</Link> at any time.
+              You are receiving this because you opted in at brianmaina.stream. <Link href={`${baseUrl}/unsubscribe?email=${userEmail}`} style={link}>Unsubscribe</Link> at any time.
             </Text>
           </Section>
         </Container>

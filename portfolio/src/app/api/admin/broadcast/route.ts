@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     }
 
     const emailsToSend = subscribers.map((sub) => ({
-      from: "Brian Maina <hello@brianmaina.de>",
+      from: "Brian Maina <hello@brianmaina.stream>",
       to: sub.email,
       subject: subject,
       react: NewsletterEmail({ 

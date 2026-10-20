@@ -52,11 +52,11 @@ export async function POST(req: Request) {
       const htmlContent: string = buildLeadReplyHtml(message);
 
       const { data, error } = await resend.emails.send({
-        from: "Brian Maina <brian@brianmaina.de>",
+        from: "Brian Maina <brian@brianmaina.stream>",
         to: email,
         // Pass an array of strings to use multiple addresses
         replyTo: [
-          "brian@brianmaina.de", 
+          "brian@brianmaina.stream", 
           `reply+${id}@ydimita.resend.app`
         ], 
         subject: subject,

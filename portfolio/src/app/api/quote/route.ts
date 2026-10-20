@@ -55,8 +55,8 @@ export async function POST(req: Request) {
     // 3. COMPILE ALL EMAILS INTO AN ARRAY
     const emailsToSend = [
       {
-        from: "Portfolio Form <noreply@brianmaina.de>", 
-        to: "request@brianmaina.de",
+        from: "Portfolio Form <noreply@brianmaina.stream>", 
+        to: "request@brianmaina.stream",
         subject: `New Freelance Inquiry: ${service}`,
         react: AdminQuoteNotificationEmail({ 
           nickname: nickname, 
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
     if (newsletter) {
       // User opted in: Send the combined Thank You + Verification email
       emailsToSend.push({
-        from: "Brian Maina <hello@brianmaina.de>",
+        from: "Brian Maina <hello@brianmaina.stream>",
         to: email,
         subject: "Thanks for reaching out! (Action Required)",
         react: VerificationEmail({ 
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
     } else {
       // User did not opt in: Send the standard Thank You email
       emailsToSend.push({
-        from: "Brian Maina <hello@brianmaina.de>", 
+        from: "Brian Maina <hello@brianmaina.stream>", 
         to: email,
         subject: "Thanks for reaching out!",
         react: ClientThankYouEmail({ 

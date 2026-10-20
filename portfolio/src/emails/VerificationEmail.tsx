@@ -10,7 +10,7 @@ interface VerificationEmailProps {
 }
 
 export default function VerificationEmail({ userEmail, nickname = "there", token, verifyLink, service }: VerificationEmailProps) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://brianmaina.de";
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://brianmaina.stream";
   
   const finalLink = verifyLink ? verifyLink : `${baseUrl}/verify?token=${token}`;
 

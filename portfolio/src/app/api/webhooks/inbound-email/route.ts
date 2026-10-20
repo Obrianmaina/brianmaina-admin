@@ -74,7 +74,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // 5. Extract the Quote ID from the To address (e.g., reply+60f1b... @reply.brianmaina.de)
+    // 5. Extract the Quote ID from the To address (e.g., reply+60f1b... @reply.brianmaina.stream)
     const match = toAddress.match(/reply\+(.+)@/);
     const quoteId = match ? match[1] : null;
 

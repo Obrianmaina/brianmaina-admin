@@ -45,7 +45,7 @@ export async function POST(request: Request) {
     // Send the Welcome / Confirmation Email with the required props
     try {
       await resend.emails.send({
-        from: 'Brian Maina <hello@brianmaina.de>', // Ensure this matches your verified Resend domain
+        from: 'Brian Maina <hello@brianmaina.stream>', // Ensure this matches your verified Resend domain
         to: subscriber.email,
         subject: 'Subscription Confirmed! 🎉',
         react: SubscriptionConfirmedEmail({

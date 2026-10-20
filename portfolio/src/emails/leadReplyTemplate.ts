@@ -45,7 +45,7 @@ export function buildLeadReplyHtml(body: string): string {
                             <table cellpadding="0" cellspacing="0" style="margin-top:10px;">
                               <tr>
                                 <td style="padding-right:8px;">
-                                  <a href="https://www.brianmaina.de"
+                                  <a href="https://www.brianmaina.stream"
                                     style="display:inline-block;background-color:#1f2937;color:#d1d5db;font-size:11px;font-weight:600;text-decoration:none;padding:4px 10px;border-radius:4px;border:1px solid #374151;letter-spacing:0.05em;">
                                     Portfolio
                                   </a>
@@ -57,7 +57,7 @@ export function buildLeadReplyHtml(body: string): string {
                                   </a>
                                 </td>
                                 <td>
-                                  <a href="mailto:brian@brianmaina.de"
+                                  <a href="mailto:brian@brianmaina.stream"
                                     style="display:inline-block;background-color:#1f2937;color:#d1d5db;font-size:11px;font-weight:600;text-decoration:none;padding:4px 10px;border-radius:4px;border:1px solid #374151;letter-spacing:0.05em;">
                                     Email
                                   </a>

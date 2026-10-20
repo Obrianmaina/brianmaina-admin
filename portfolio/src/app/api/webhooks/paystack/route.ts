@@ -83,7 +83,7 @@ export async function POST(request: Request) {
       const downloadLink = `${process.env.NEXT_PUBLIC_BASE_URL}/documents`;
 
       const { data, error } = await resend.emails.send({
-        from: "Brian Maina <hello@brianmaina.de>",
+        from: "Brian Maina <hello@brianmaina.stream>",
         to: transaction.clientEmail,
         subject: `Receipt from Brian Maina (#${transaction.referenceNumber})`,
         react: TransactionEmail({ 

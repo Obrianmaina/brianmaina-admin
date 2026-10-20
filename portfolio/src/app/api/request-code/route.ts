@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     });
 
     await resend.emails.send({
-      from: 'Portfolio Access <noreply@brianmaina.de>', // Replace with your verified domain in production
+      from: 'Portfolio Access <noreply@brianmaina.stream>', // Replace with your verified domain in production
       to: email,
       subject: 'Your Access Code for Brian Maina\'s Portfolio',
       react: AccessCodeEmail({ validationCode: code }),

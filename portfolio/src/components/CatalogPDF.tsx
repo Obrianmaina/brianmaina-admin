@@ -82,7 +82,7 @@ export const CatalogPDF = ({ services, bundles, currency }: CatalogPDFProps) => 
           </View>
         ))}
 
-        <Text style={styles.footer}>brianmaina.de | Pricing is subject to change based on project scope.</Text>
+        <Text style={styles.footer}>brianmaina.stream | Pricing is subject to change based on project scope.</Text>
       </Page>
 
       {/* Put bundles on a new page if you have a lot of items */}
@@ -103,7 +103,7 @@ export const CatalogPDF = ({ services, bundles, currency }: CatalogPDFProps) => 
             </Text>
           </View>
         ))}
-        <Text style={styles.footer}>brianmaina.de | Pricing is subject to change based on project scope.</Text>
+        <Text style={styles.footer}>brianmaina.stream | Pricing is subject to change based on project scope.</Text>
       </Page>
     </Document>
   );
